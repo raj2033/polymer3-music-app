@@ -7,6 +7,7 @@
  * Code distributed by Google as part of the polymer project is also
  * subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
  */
+// challenge 1: inside function _routePageChanged (), this.playlistNames is empty on refreshing page
 
 import { PolymerElement, html } from '@polymer/polymer/polymer-element.js';
 import { setPassiveTouchGestures, setRootPath } from '@polymer/polymer/lib/utils/settings.js';
@@ -75,6 +76,15 @@ class MyApp extends PolymerElement {
         
       </style>
 
+      <!-- make api calls to fetch the playlists -->
+      <iron-ajax
+              auto
+              url="https://api.napster.com/v2.0/playlists?apikey=ZTk2YjY4MjMtMDAzYy00MTg4LWE2MjYtZDIzNjJmMmM0YTdm"
+              handle-as = "json"
+              on-response="handleResponse"
+              last-response="{{ajaxResponse}}">
+      </iron-ajax>
+
       <app-location route="{{route}}" url-space-regex="^[[rootPath]]">
       </app-location>
 
@@ -86,16 +96,6 @@ class MyApp extends PolymerElement {
         <app-drawer id="drawer" slot="drawer" swipe-open="[[narrow]]">
           <app-toolbar>Menu</app-toolbar>
           <iron-selector selected="[[page]]" attr-for-selected="name" class="drawer-list" role="navigation">
-            <a name="view1" href="[[rootPath]]view1">View One</a>
-            <a name="view2" href="[[rootPath]]view2">View Two</a>
-            <a name="view3" href="[[rootPath]]view3">View Three</a>
-            <iron-ajax
-              auto
-              url="https://api.napster.com/v2.0/playlists?apikey=ZTk2YjY4MjMtMDAzYy00MTg4LWE2MjYtZDIzNjJmMmM0YTdm"
-              handle-as = "json"
-              on-response="handleResponse"
-              last-response="{{ajaxResponse}}">
-            </iron-ajax>
             <template is="dom-repeat" items="[[playlists]]">
               <a name="[[item.id]]" href="[[rootPath]][[item.name ]]">[[item.name]]</a>
             </template>
@@ -104,19 +104,10 @@ class MyApp extends PolymerElement {
 
         <!-- Main content -->
         <app-header-layout has-scrolling-region="">
-          <!-- make api calls to fetch the playlists -->
-          <iron-ajax
-                  auto
-                  url="https://api.napster.com/v2.0/playlists?apikey=ZTk2YjY4MjMtMDAzYy00MTg4LWE2MjYtZDIzNjJmMmM0YTdm"
-                  handle-as = "json"
-                  on-response="handleResponse"
-                  last-response="{{ajaxResponse}}">
-          </iron-ajax>
-
           <app-header slot="header" condenses="" reveals="" effects="waterfall">
             <app-toolbar>
               <paper-icon-button icon="my-icons:menu" drawer-toggle=""></paper-icon-button>
-              <div main-title="">My App</div>
+              <div main-title="">My Music App</div>
             </app-toolbar>
           </app-header>
 
@@ -162,6 +153,7 @@ class MyApp extends PolymerElement {
     ];
   }
 
+  // this function is called on api call or on refreshing page
   handleResponse(event, request) { 
     //  get all the playlists from the api call response
     this.playlists = request.response.playlists;
@@ -169,11 +161,24 @@ class MyApp extends PolymerElement {
     // get all the playlist names
     for(let playlist of this.playlists) {
       if(this.playlistNames.length < this.playlists.length) {
-        this.playlistNames.push(playlist.name);
+        // this.playlistNames.push(playlist.name);
+        this.push('playlistNames', playlist.name);
       }  
     }
+
+    // on refreshing url, if any route is present, then find its id
+    if(this.routeData.page){
+      for(let playlist of this.playlists){
+        if(playlist.name === this.routeData.page){
+          this.selectedPlaylist = playlist.id;
+        }
+      }
+    }
+    console.log('handleResponse', this.playlistNames);
   }
 
+  // this function is called on every new route change
+  // this is called first then handleResponse() is called, thats y this.playlistNames is empty
   _routePageChanged(page) {
     for(let playlist of this.playlists){
       if(playlist.name === page){
@@ -182,7 +187,8 @@ class MyApp extends PolymerElement {
     }
     if (!page) {
       this.page = 'view404';
-    } else if (this.playlistNames.indexOf(page) !== -1) {
+    } else if (["New Music", "Song of the Day", "Top Tracks in US", "Trending Pop", "Drop the Mic", "Global Trending", "Trending Country", "Brown Sugar", "Happy Alternative", "Chill Country (Badlands)"] !== -1) {
+    // } else if (this.playlistNames.indexOf(page) !== -1) {
       this.page = 'playlist';
     } else {
       this.page = 'view404';
@@ -201,9 +207,6 @@ class MyApp extends PolymerElement {
         break;
       case 'playlist':
         import('./demo-send.js');
-        break;
-      default:
-        console.log('uknown page');
         break;
     }
   }
